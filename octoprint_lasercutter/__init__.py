@@ -16,7 +16,8 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
  def get_template_configs(self):
      return [
          dict(type="navbar", custom_bindings=False),
-         dict(type="settings", custom_bindings=False)
+         dict(type="settings", custom_bindings=False),
+         dict(type="tab", custom_bindings=False)
      ]
 
  def get_assets(self):
