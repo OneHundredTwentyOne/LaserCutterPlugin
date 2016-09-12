@@ -1,9 +1,28 @@
-.up_button{
+.up_button_xy{
     margin-left: 7%;
     margin-bottom: 1%;
 }
 
-.down_button{
+.down_button_xy{
     margin-left: 7%;
     margin-top: 1%;
+}
+
+.down_button_z{
+    margin-left: 7%;
+    margin-top: 1%;
+}
+
+.up_button_z{
+    margin-left: 7%;
+    margin-bottom: 1%;
+}
+
+.home_button_z{
+    margin-left: 7%;
+}
+
+.control-panel-z{
+    margin-left:33%;
+    position: relative;
 }
