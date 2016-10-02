@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 import octoprint.plugin
+import svg2gcode as converter
 
 
 class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
