@@ -1,3 +1,6 @@
+# Ignore py-svg2gcode when it is added
+
+# Defaults
 *.pyc
 *.swp
 .idea
