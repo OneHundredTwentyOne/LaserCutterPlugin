@@ -173,6 +173,176 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	def do_slice(self, model_path, printer_profile, machinecode_path=None, profile_path=None,
 				 position=None, on_progress=None, on_progress_args=None, on_progress_kwargs=None):
 		#insert Peter's slicer here
+		try:
+			with self._job_mutex:
+				if not profile_path:
+					profile_path = self._settings.get(["default_profile"])
+				if not machinecode_path:
+					path, _ = os.path.splitext(model_path)
+					machinecode_path = path + ".gco"
+
+				if position and isinstance(position, dict) and "x" in position and "y" in position:
+					posX = position["x"]
+					posY = position["y"]
+				else:
+					posX = None
+					posY = None
+
+				if on_progress:
+					if not on_progress_args:
+						on_progress_args = ()
+					if not on_progress_kwargs:
+						on_progress_kwargs = dict()
+
+				self._lasercutter_logger.info(
+					u"### Slicing %s to %s using profile stored at %s" % (model_path, machinecode_path, profile_path))
+
+				engine_settings = self._convert_to_engine(profile_path, printer_profile, posX, posY)
+
+				executable = self._settings.get(["cura_engine"])
+				if not executable:
+					return False, "Path to CuraEngine is not configured "
+
+				working_dir, _ = os.path.split(executable)
+				args = [executable, '-v', '-p']
+				for k, v in engine_settings.items():
+					args += ["-s", "%s=%s" % (k, str(v))]
+				args += ["-o", machinecode_path, model_path]
+
+				self._logger.info(u"Running %r in %s" % (" ".join(args), working_dir))
+
+				import sarge
+				p = sarge.run(args, cwd=working_dir, async=True, stdout=sarge.Capture(), stderr=sarge.Capture())
+				p.wait_events()
+				self._slicing_commands[machinecode_path] = p.commands[0]
+
+			try:
+				layer_count = None
+				step_factor = dict(
+					inset=0,
+					skin=1,
+					export=2
+				)
+				analysis = None
+				while p.returncode is None:
+					line = p.stderr.readline(timeout=0.5)
+					if not line:
+						p.commands[0].poll()
+						continue
+
+					line = octoprint.util.to_unicode(line, errors="replace")
+					self._lasercutter_logger.debug(line.strip())
+
+					if on_progress is not None:
+						# The Cura slicing process has three individual steps, each consisting of <layer_count> substeps:
+						#
+						#   - inset
+						#   - skin
+						#   - export
+						#
+						# So each layer will be processed three times, once for each step, resulting in a total amount of
+						# substeps of 3 * <layer_count>.
+						#
+						# The CuraEngine reports the calculated layer count and the continuous progress on stderr.
+						# The layer count gets reported right at the beginning in a line of the format:
+						#
+						#   Layer count: <layer_count>
+						#
+						# The individual progress per each of the three steps gets reported on stderr in a line of
+						# the format:
+						#
+						#   Progress:<step>:<current_layer>:<layer_count>
+						#
+						# Thus, for determining the overall progress the following formula applies:
+						#
+						#   progress = <step_factor> * <layer_count> + <current_layer> / <layer_count> * 3
+						#
+						# with <step_factor> being 0 for "inset", 1 for "skin" and 2 for "export".
+
+						if line.startswith(u"Layer count:") and layer_count is None:
+							try:
+								layer_count = float(line[len(u"Layer count:"):].strip())
+							except:
+								pass
+
+						elif line.startswith(u"Progress:"):
+							split_line = line[len(u"Progress:"):].strip().split(":")
+							if len(split_line) == 3:
+								step, current_layer, _ = split_line
+								try:
+									current_layer = float(current_layer)
+								except:
+									pass
+								else:
+									if not step in step_factor:
+										continue
+									on_progress_kwargs["_progress"] = (step_factor[
+																		   step] * layer_count + current_layer) / (
+																	  layer_count * 3)
+									on_progress(*on_progress_args, **on_progress_kwargs)
+
+						elif line.startswith(u"Print time:"):
+							try:
+								print_time = int(line[len(u"Print time:"):].strip())
+								if analysis is None:
+									analysis = dict()
+								analysis["estimatedPrintTime"] = print_time
+							except:
+								pass
+
+						elif line.startswith(u"Filament:") or line.startswith(u"Filament2:"):
+							if line.startswith(u"Filament:"):
+								filament_str = line[len(u"Filament:"):].strip()
+								tool_key = "tool0"
+							else:
+								filament_str = line[len(u"Filament2:"):].strip()
+								tool_key = "tool1"
+
+							try:
+								filament = int(filament_str)
+								if analysis is None:
+									analysis = dict()
+								if not "filament" in analysis:
+									analysis["filament"] = dict()
+								if not tool_key in analysis["filament"]:
+									analysis["filament"][tool_key] = dict()
+								analysis["filament"][tool_key]["length"] = filament
+								if "filamentDiameter" in engine_settings:
+									radius_in_cm = float(int(engine_settings["filamentDiameter"]) / 10000.0) / 2.0
+									filament_in_cm = filament / 10.0
+									analysis["filament"][tool_key][
+										"volume"] = filament_in_cm * math.pi * radius_in_cm * radius_in_cm
+							except:
+								pass
+			finally:
+				p.close()
+
+			with self._job_mutex:
+				if machinecode_path in self._cancelled_jobs:
+					self._lasercutter_logger.info(u"### Cancelled")
+					raise octoprint.slicing.SlicingCancelled()
+
+			self._lasercutter_logger.info(u"### Finished, returncode %d" % p.returncode)
+			if p.returncode == 0:
+				return True, dict(analysis=analysis)
+			else:
+				self._logger.warn(u"Could not slice via Cura, got return code %r" % p.returncode)
+				return False, "Got returncode %r" % p.returncode
+
+		except octoprint.slicing.SlicingCancelled as e:
+			raise e
+		except:
+			self._logger.exception(u"Could not slice via Cura, got an unknown error")
+			return False, "Unknown error, please consult the log file"
+
+		finally:
+			with self._job_mutex:
+				if machinecode_path in self._cancelled_jobs:
+					self._cancelled_jobs.remove(machinecode_path)
+				if machinecode_path in self._slicing_commands:
+					del self._slicing_commands[machinecode_path]
+
+			self._lasercutter_logger.info("-" * 40)
 
 	def cancel_slicing(self, machinecode_path):
 		with self_job_mutex:
@@ -198,9 +368,9 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			with octoprint.util.atomic_write(path, "wb") as f:
 				yaml.safe_dump(profile, f, default_flow_style=False, indent="  ", allow_unicode=True)
 
-		def _convert_to_engine(self, profile_path, printer_profile, posX, posY):
-			profile = Profile(self._load_profile(profile_path), printer_profile, posX, posY)
-			return profile.convert_to_engine()
+	def _convert_to_engine(self, profile_path, printer_profile, posX, posY):
+		profile = Profile(self._load_profile(profile_path), printer_profile, posX, posY)
+		return profile.convert_to_engine()
 
 	def on_after_startup(self):
 		self._logger.info("Laser Cutter (more: %s)" % self._settings.get(["url"]))
