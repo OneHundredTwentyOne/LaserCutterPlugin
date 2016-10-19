@@ -21,7 +21,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 						octoprint.plugin.BlueprintPlugin,
 						octoprint.plugin.SlicerPlugin):
 	def __init__(self):
-		self.logger = logging.getLogger("octoprint.plugins.lasercutter")
+		self._logger = logging.getLogger("octoprint.plugins.lasercutter")
 		self._lasercutter_logger = logging.getLogger("octoprint.plugins.lasercutter")
 
 		#lets the plugin check jobs across different threads
@@ -43,6 +43,88 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		self._lasercutter_logger.addHandler(lasercutter_logging_handler)
 		self._lasercutter_logger.setLevel(logging.DEBUG if self._settings.get_boolean(["debug-logging"]) else logging.CRITICAL)
 		self._lasercutter_logger.propagate = False
+
+	@octoprint.plugin.BlueprintPlugin.route("/import", methods=["POST"])
+	def import_lasercutter_profile(self):
+		import datetime
+		import tempfile
+
+		from octoprint.server import slicingManager
+
+		input_name = "file"
+		input_upload_name = input_name + "." + self._settings.global_get(["server", "uploads", "nameSuffix"])
+		input_upload_path = input_name + "." + self._settings.global_get(["server", "uploads", "pathSuffix"])
+
+		if input_upload_name in flask.request.values and input_upload_path in flask.request.values:
+			filename = flask.request.values[input_upload_name]
+			try:
+				profile_dict = Profile.from_lasercutter_ini(flask.request.values[input_upload_path])
+			except Exception as e:
+				self.logger.exception("Error while attempting to convert the uploaded profile")
+				return flask.make_response("Something went wrong while converting imported profile: {message}".format(message=str(e)), 500)
+
+		else:
+			self.logger.warn("No profile file included")
+			return flask.make_response("No file included", 400)
+
+		if profile_dict is None:
+			self._logger.warn("No profile file included, cancelling operation")
+			return flask.make_response("Could not convert lasercutter profile", 400)
+
+		name, _ = os.path.splitext(filename)
+
+		profile_name = _sanitize_name(name)
+		profile_display_name = name
+		profile_description = "Imported from {filename} on {date}".format(filename=filename, date=octoprint.util.get_formatted_datetime(datetime.datetime.now()))
+		profile_allow_overwrite = False
+
+		#overrides
+		if "name" in flask.request.values:
+			profile_name = flask.request.values["name"]
+		if "displayName" in flask.request.values:
+			profile_display_name = flask.request.values["displayName"]
+		if "description" in flask.request.values:
+			description = flask.request.values["description"]
+		if "allowOverwrite" in flask.request.values:
+			from octoprint.server.api import valid_boolean_trues
+			profile_allow_overwrite =  flask.request.values["allowOverwrite"] in valid_boolean_trues
+
+		try:
+			slicingManager.save_profile("lasercutter",profile_name,profile_dict,
+										allow_overwrite = profile_allow_overwrite, display_name = profile_display_name,
+										description = profile._description)
+		except octoprint.slicing.ProfileAlreadyExists:
+			self._logger.warn("Profile {profile_name} already exists, aborting".format(**locals()))
+			return flask.make_response("A profile named {profile_name} already exists for slicer cura".format(**locals()), 409)
+
+		result = dict(
+			resource = flask.url_for("api.slicingGetSlicerProfile", slicer = "lasercutter", name = profile_name, external = True),
+			displayName = profile_display_name,
+			description = profile_description
+		)
+		r = flask.make_response(flask.jsonify(result), 201)
+		r.headers["Location"] = result["resource"]
+		return r
+
+	def on_settings_save(self, data):
+		old_debug_logging = self._settings.get_boolean(["debug_logging"])
+
+		octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+
+		new_debug_logging = self._settings.get_boolean(["debug_logging"])
+		if old_debug_logging != new_debug_logging:
+			if new_debug_logging:
+				self._lasercutter_logger.setLevel(logging.DEBUG)
+			else:
+				self._lasercutter_logger.setLevel(logging.CRITICAL)
+
+	def get_settings_defaults(self):
+		return dict(
+			lasercutter = None,
+			default_profile = None,
+			debug_logging = False
+		)
+
 
 	def is_slicer_configured(self):
 		lasercutter=self._settings.get(["cura_engine"])
@@ -120,20 +202,6 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			profile = Profile(self._load_profile(profile_path), printer_profile, posX, posY)
 			return profile.convert_to_engine()
 
-	def _sanitize_name(name):
-		if name is None:
-			return None
-
-		if "/" in name or "\\" in name:
-			raise ValueError("name must not contain / or \\")
-
-		import string
-		valid_chars = "-_.() {ascii}{digits}".format(ascii=string.ascii_letters, digits=string.digits)
-		sanitized_name = ''.join(c for c in name if c in valid_chars)
-		sanitized_name = sanitized_name.replace(" ", "_")
-		return sanitized_name.lower()
-
-
 	def on_after_startup(self):
 		self._logger.info("Laser Cutter (more: %s)" % self._settings.get(["url"]))
 
@@ -153,6 +221,19 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			css=["css/lasercutter.css"],
 			less=["less/lasercutter.less"]
         )
+
+def _sanitize_name(name):
+	if name is None:
+		return None
+
+	if "/" in name or "\\" in name:
+		raise ValueError("name must not contain / or \\")
+
+	import string
+	valid_chars = "-_.() {ascii}{digits}".format(ascii=string.ascii_letters, digits=string.digits)
+	sanitized_name = ''.join(c for c in name if c in valid_chars)
+	sanitized_name = sanitized_name.replace(" ", "_")
+	return sanitized_name.lower()
 
 __plugin_name__ = "Laser Cutter"
 __plugin_implementation__ = LaserCutterPlugin()

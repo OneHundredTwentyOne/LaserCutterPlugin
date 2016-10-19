@@ -1,5 +1,5 @@
 $(function() {
-    function HelloWorldViewModel(parameters) {
+    function LaserCutterViewModel(parameters) {
         var self = this;
 
         self.loginState = parameters[0];
@@ -118,40 +118,77 @@ $(function() {
             });
         };
 
-        // this will hold the URL currently displayed by the iframe
-        self.currentUrl = ko.observable();
+        self.makeProfileDefault = function(data){
+            if(!data.resources){
+                return;
+            }
 
-        // this will hold the URL entered in the text field
-        self.newUrl = ko.observable();
+            _.each(self.profiles.items(),function(item){
+               item.isdefault(false);
+            });
 
-        // this will be called when the user clicks the "Go" button and set the iframe's URL to
-        // the entered URL
-        self.goToUrl = function() {
-            self.currentUrl(self.newUrl());
+            var item = self.profiles.getItem(function(item){
+                return item.key == data.key;
+            });
+            if(item !== undefined){
+                item.isdefault(true);
+            }
+
+            $.ajax({
+                url: data.resource(),
+                type: "PATCH",
+                dataType: "json",
+                data: JSON.stringify({default: true}),
+                contentType: "application/json; charset=UTF-8",
+                success: function() {
+                    self.requestData();
+                }
+            });
         };
 
-        // This will get called before the LaserCutterViewModel gets bound to the DOM, but after its
-        // dependencies have already been initialized. It is especially guaranteed that this method
-        // gets called _after_ the settings have been retrieved from the OctoPrint backend and thus
-        // the SettingsViewModel been properly populated.
-        self.onBeforeBinding = function() {
-            self.newUrl(self.settings.settings.plugins.lasercutter.url());
-            self.goToUrl();
-        }
+        self.showImportProfileDialog = function(){
+          $("#settings_plugin_lasercutter_import").modal("show");
+        };
+
+        self.requestData = function(){
+            $.ajax({
+                url: API_BASEURL + "slicing/lasercutter/profiles",
+                type: "GET",
+                dataType: "json",
+                success: self.fromResponse
+            });
+        };
+
+        self.fromResponse = function(data){
+            var profiles = [];
+            _.each(_.keys(data), function(key){
+                profiles.push({
+                    key: key,
+                    name: ko.observable(data[key].displayName),
+                    description: ko.observable(data[key].description),
+                    isdefault: ko.observable(data[key].default),
+                    resource: ko.observable(data[key].resource)
+                })
+            });
+            self.profile.updateItems(profiles);
+        };
+
+        self.onBeforeBinding = function(){
+            self.settings = self.settingsViewModel.settings;
+            self.requestData();
+        };
     }
 
     // This is how our plugin registers itself with the application, by adding some configuration
     // information to the global variable OCTOPRINT_VIEWMODELS
     OCTOPRINT_VIEWMODELS.push([
         // This is the constructor to call for instantiating the plugin
-        HelloWorldViewModel,
+        LaserCutterViewModel,
 
         // This is a list of dependencies to inject into the plugin, the order which you request
         // here is the order in which the dependencies will be injected into your view model upon
         // instantiation via the parameters argument
-        ["settingsViewModel"],
-
-        // Finally, this is the list of selectors for all elements we want this view model to be bound to.
-        ["#tab_plugin_lasercutter"]
+        ["loginStateViewModel, settingsViewModel, slicingViewModel"],
+        "#settings_plugin_lasercutter"
     ]);
 });
