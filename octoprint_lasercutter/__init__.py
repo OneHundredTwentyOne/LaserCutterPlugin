@@ -131,11 +131,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 
 
 	def is_slicer_configured(self):
-		lasercutter=self._settings.get(["cura_engine"])
-		if lasercutter is not None and os.path.exists(lasercutter):
-			return true
-		else:
-			self._logger.info("Laser Cutting functionality is not configured or does not exist")
+		return True
 
 	def get_slicer_properties(self):
 		return dict(
