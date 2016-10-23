@@ -38,7 +38,33 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	def on_startup(self):
 		print "On STARTUP"
 
-	
+	def get_slicer_properties(self):
+		return dict(
+			type="lasercutter",
+			name="Laser Cutter",
+			same_device = True,
+			progress_report = True,
+			source_file_types= ["svg"],
+			destination_extensions = ["gco", "gcode", "g"]
+		)
+
+	def is_slicer_configured(self):
+		print "Set to true so it should always be enabled"
+		return True
+
+	@property
+	def slicing_enabled(self):
+		return True
+
+	def get_assets(self):
+		return{
+			"js": ["js/lasercutter.js"],
+			"less": ["less/lasercutter.less"],
+			"css": ["css/lasercutter.css"]
+		}
+
+
+
 
 __plugin_name__ = "Laser Cutter"
 __plugin_implementation__ = LaserCutterPlugin()
