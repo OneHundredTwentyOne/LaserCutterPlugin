@@ -15,7 +15,7 @@ import flask
 import math
 
 #imports Peter's SVG converter
-import svgConverter
+import svgConverter as svg_converter
 
 
 class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
@@ -34,6 +34,8 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		self._cancelled_jobs = []
 		self._job_mutex = threading.Lock()
 
+        # self._logger.info("LOLOL HELLO!!! __init__ was just called")
+
 	def get_template_vars(self):
 		return dict(
 			homepage = __plugin_url__
@@ -47,6 +49,8 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		self._lasercutter_logger.addHandler(lasercutter_logging_handler)
 		self._lasercutter_logger.setLevel(logging.DEBUG if self._settings.get_boolean(["debug-logging"]) else logging.CRITICAL)
 		self._lasercutter_logger.propagate = False
+
+        # self._logger.info("LOLOL HELLO!!! on_startup was just called")
 
 	@octoprint.plugin.BlueprintPlugin.route("/import", methods=["POST"])
 	def import_lasercutter_profile(self):
@@ -173,7 +177,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	def do_slice(self, model_path, printer_profile, machinecode_path=None, profile_path=None,
 				 position=None, on_progress=None, on_progress_args=None, on_progress_kwargs=None):
 		#insert Peter's slicer here
-		test = svgConverter.test()
+		test = svg_converter.test()
 		print test
 
 	def cancel_slicing(self, machinecode_path):
