@@ -48,6 +48,29 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			destination_extensions = ["gco", "gcode", "g"]
 		)
 
+	def get_slicer_default_profile(self):
+		path = self._settings.get(["default_profile"])
+		if not path:
+			path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "profiles", "default.profile.yaml")
+		return self.get_slicer_profile(path)
+
+	def get_slicer_profile(self, path):
+		profile_dict = self._load_profile(path)
+		display_name = None
+		description = None
+		if "_display_name" in profile_dict:
+			display_name = profile_dict["_display_name"]
+			del profile_dict["_display_name"]
+		if "_description" in profile_dict:
+			description = profile_dict["_description"]
+			del profile_dict["_description"]
+		properties = self.get_slicer_properties()
+		return octoprint.slicing.SlicingProfile(properties["type"], "unknown", profile_dict, display_name = display_name, description = description)
+
+	def do_slice(self, model_path, printer_profile, machinecode_path = None, profile_path = None
+				 position = None, on_progress = None, on_progress_args = None, on_progress_kwargs = None):
+
+
 	def is_slicer_configured(self):
 		print "Set to true so it should always be enabled"
 		return True
@@ -62,9 +85,6 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			"less": ["less/lasercutter.less"],
 			"css": ["css/lasercutter.css"]
 		}
-
-
-
 
 __plugin_name__ = "Laser Cutter"
 __plugin_implementation__ = LaserCutterPlugin()
