@@ -67,7 +67,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		properties = self.get_slicer_properties()
 		return octoprint.slicing.SlicingProfile(properties["type"], "unknown", profile_dict, display_name = display_name, description = description)
 
-	def do_slice(self, model_path, printer_profile, machinecode_path = None, profile_path = None
+	def do_slice(self, model_path, printer_profile, machinecode_path = None, profile_path = None,
 				 position = None, on_progress = None, on_progress_args = None, on_progress_kwargs = None):
 
 
