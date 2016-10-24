@@ -69,7 +69,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 
 	def do_slice(self, model_path, printer_profile, machinecode_path = None, profile_path = None,
 				 position = None, on_progress = None, on_progress_args = None, on_progress_kwargs = None):
-
+		pass
 
 	def is_slicer_configured(self):
 		print "Set to true so it should always be enabled"
