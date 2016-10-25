@@ -147,7 +147,8 @@ $(function() {
         };
 
         self.showImportProfileDialog = function(){
-            console.log("Import DIALOGGGGG");
+            //not sure if this method is actually running for some reason
+          console.log("Testing that this works");
           $("#settings_plugin_lasercutter_import").modal("show");
         };
 
@@ -185,11 +186,10 @@ $(function() {
     OCTOPRINT_VIEWMODELS.push([
         // This is the constructor to call for instantiating the plugin
         LaserCutterViewModel,
-
         // This is a list of dependencies to inject into the plugin, the order which you request
         // here is the order in which the dependencies will be injected into your view model upon
         // instantiation via the parameters argument
         ["loginStateViewModel, settingsViewModel, slicingViewModel"],
-        "#settings_plugin_octoprint_lasercutter"
+        "#settings_plugin_lasercutter"
     ]);
 });

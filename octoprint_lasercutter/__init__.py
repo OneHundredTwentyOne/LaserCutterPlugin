@@ -28,8 +28,10 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	def __init__(self):
 		print "Initialising OctoPrint LaserCutter plugin"
 		self._logger = logging.getLogger("octoprint.plugins.lasercutter")
+		import threading
 		self._slicing_commands = dict()
 		self._cancelled_jobs = []
+		self._job_mutex = threading.Lock()
 
 	def get_template_vars(self):
 		return dict(
@@ -40,6 +42,9 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "On STARTUP"
 
 	def get_slicer_properties(self):
+
+		print "GET SLICER PROPERTIES FUNCTION"
+
 		return dict(
 			type="lasercutter",
 			name="Laser Cutter",
@@ -52,8 +57,11 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	@octoprint.plugin.BlueprintPlugin.route("/import", methods=["POST"])
 	def import_laser_profile(self):
 		import tempfile
+		import datetime
 
 		from octoprint.server import slicingManager
+
+		print "IMPORT PROFILE FUNCTION"
 
 		input_name = "file"
 		input_upload_name = input_name + "." + self._settings.global_get(["server", "uploads", "nameSuffix"])
@@ -62,7 +70,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		if input_upload_name in flask.request.values and input_upload_path in flask.request.values:
 			filename = flask.request.values[input_upload_name]
 			try:
-				profile_dict = Profile.from_cura_ini(flask.request.values[input_upload_path])
+				profile_dict = Profile.from_lasercutter_ini(flask.request.values[input_upload_path])
 			except Exception as e:
 				self._logger.exception("Error while converting the imported profile")
 				return flask.make_response("No file included", 400)
@@ -83,7 +91,8 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		if "displayName" in flask.request.values:
 			profile_display_name = flask.request.values["displayName"]
 		if "description" in flask.request.values:
-			profile_description = flask.request.values["description"]
+			profile_description = flask.request.values["Imported from {filename} on {date}".format(filename = filename, 
+				date = octoprint.util.get_formatted_datetime(datetime.datetime.now()))]
 		if "allowOverwrite" in flask.request.values:
 			from octoprint.server.api import valid_boolean_trues
 			profile_allow_overwrite = flask.request.values["allowOverwrite"] in valid_boolean_trues
@@ -95,20 +104,21 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		except octoprint.slicing.ProfileAlreadyExists:
 			self._logger.warn("Profile already exists")
 			print("Profile")
-			return flask.make_response("Profile already exists")
+			return flask.make_response("Profile already exists", 409)
 
 		result = dict(
 			resource = flask.url_for("api.slicingGetSlicerProfile", slicer = "lasercutter", name = profile_name,
-									 external = True),
+									 _external = True),
 			displayName = profile_display_name,
 			description = profile_description
-		)
+		)	
 		r = flask.make_response(flask.jsonify(result), 201)
 		r.headers["Location"] = result["resource"]
 		return r
 
 
 	def _load_profile(self, path):
+		print "LOAD PROFILE FUNCTION"
 		import yaml
 		profile_dict = dict()
 		with open(path, "r") as f:
@@ -119,17 +129,20 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		return profile_dict
 
 	def _save_profile(self, path, profile, allow_overwrite = True):
+		print "SAVE PROFILE FUNCTION"
 		import yaml
 		with octoprint.util.atomic_write(path, "wb") as f:
 			yaml.safe_dump(profile, f, default_flow_style = False, indent= "  ", allow_unicode = True)
 
 	def get_slicer_default_profile(self):
+		print "GET DEFAULT PROFILE FUNCTION"
 		path = self._settings.get(["default_profile"])
 		if not path:
 			path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "profiles", "default.profile.yaml")
 		return self.get_slicer_profile(path)
 
 	def save_slicer_profile(self, path, profile, allow_overwrite = True, overrides = None):
+		print "SAVE SLICER PROFILE FUNCTION"
 		new_profile = Profile.merge_profile(profile.data, overrides = overrides)
 		if profile.display_name is not None:
 			new_profile["_display_name"] = profile.display_name
@@ -138,6 +151,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		self._save_profile(path, new_profile, allow_overwrite = allow_overwrite)
 
 	def get_slicer_profile(self, path):
+		print "GET SLICER PROFILE FUNCTION"
 		profile_dict = self._load_profile(path)
 		display_name = None
 		description = None
