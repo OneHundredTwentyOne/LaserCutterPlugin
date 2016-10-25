@@ -147,6 +147,7 @@ $(function() {
         };
 
         self.showImportProfileDialog = function(){
+            console.log("Import DIALOGGGGG");
           $("#settings_plugin_lasercutter_import").modal("show");
         };
 
@@ -189,6 +190,6 @@ $(function() {
         // here is the order in which the dependencies will be injected into your view model upon
         // instantiation via the parameters argument
         ["loginStateViewModel, settingsViewModel, slicingViewModel"],
-        "#settings_plugin_lasercutter"
+        "#settings_plugin_octoprint_lasercutter"
     ]);
 });

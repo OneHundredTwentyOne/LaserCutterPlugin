@@ -94,6 +94,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 										description = profile_description)
 		except octoprint.slicing.ProfileAlreadyExists:
 			self._logger.warn("Profile already exists")
+			print("Profile")
 			return flask.make_response("Profile already exists")
 
 		result = dict(
@@ -107,6 +108,21 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		return r
 
 
+	def _load_profile(self, path):
+		import yaml
+		profile_dict = dict()
+		with open(path, "r") as f:
+			try:
+				profile_dict = yaml.safe_load(f)
+			except:
+				raise IOError("Failed to read profile")
+		return profile_dict
+
+	def _save_profile(self, path, profile, allow_overwrite = True):
+		import yaml
+		with octoprint.util.atomic_write(path, "wb") as f:
+			yaml.safe_dump(profile, f, default_flow_style = False, indent= "  ", allow_unicode = True)
+
 	def get_slicer_default_profile(self):
 		path = self._settings.get(["default_profile"])
 		if not path:
@@ -119,9 +135,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			new_profile["_display_name"] = profile.display_name
 		if profile.description is not None:
 			new_profile["_description"] = profile.description
-
 		self._save_profile(path, new_profile, allow_overwrite = allow_overwrite)
-
 
 	def get_slicer_profile(self, path):
 		profile_dict = self._load_profile(path)
@@ -143,8 +157,6 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	def is_slicer_configured(self):
 		print "Set to true so it should always be enabled"
 		return True
-
-
 
 	@property
 	def slicing_enabled(self):
