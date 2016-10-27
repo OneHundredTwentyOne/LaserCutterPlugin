@@ -49,7 +49,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			debug_logging=False
 		)
 
-	def on_startup(self):
+	def on_startup(self,host,port):
 		print "On STARTUP"
 
 	def get_slicer_properties(self):
