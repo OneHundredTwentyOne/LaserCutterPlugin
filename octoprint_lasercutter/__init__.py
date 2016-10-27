@@ -39,12 +39,12 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		)
 
 	def get_settings_defaults(self):
-		default_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "profiles", "default.profile.yaml")
+		default_path = "~/default.profile.yaml"
 		print "GETTING DEFAULT SETTINGS"
 		print "path is: " + default_path
-		default_profile = self.get_slicer_profile(self)
+		default_profile = self.get_slicer_profile()
 		return dict(
-			default_profile= self.get_slicer_profile(self),
+			default_profile,
 			debug_logging=False
 		)
 
@@ -118,7 +118,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "NAME: "+ display_name
 		print "DESC: "  + description
 		properties = self.get_slicer_properties()
-		return octoprint.slicing.SlicingProfile(properties["type"], "DEFAULT", profile_dict, display_name = display_name, description = description)
+		return [octoprint.slicing.SlicingProfile(properties["type"], "DEFAULT", profile_dict, display_name = display_name, description = description)]
 
 
 	def do_slice(self, model_path, printer_profile, machinecode_path = None, profile_path = None,
