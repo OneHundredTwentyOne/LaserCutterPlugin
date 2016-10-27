@@ -17,7 +17,6 @@ import math
 #imports Peter's SVG converter
 import svgConverter as svg_converter
 
-
 class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
                         octoprint.plugin.TemplatePlugin,
                         octoprint.plugin.SettingsPlugin,
@@ -33,19 +32,19 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		self._cancelled_jobs = []
 		self._job_mutex = threading.Lock()
 
+
 	def get_template_vars(self):
 		return dict(
 			homepage=__plugin_url__
 		)
 
 	def get_settings_defaults(self):
-		default_path = "~/default.profile.yaml"
+		default_path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
 		print "GETTING DEFAULT SETTINGS"
 		print "path is: " + default_path
-		force_profile = self.get_slicer_profile()
 		return dict(
 			cura_engine = None,
-			default_profile = force_profile,
+			default_profile = None,
 			debug_logging=False
 		)
 
@@ -53,9 +52,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "On STARTUP"
 
 	def get_slicer_properties(self):
-
 		print "GET SLICER PROPERTIES FUNCTIONSSS"
-
 		return dict(
 			type="lasercutter",
 			name="Laser Cutter",
@@ -65,19 +62,20 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			destination_extensions = ["gco", "gcode", "g"]
 		)
 
-	"""
+	
 	def _load_profile(self, path):
-		print "LOAD PROFILE FUNCTION"
+		print "LOADING PROFILE YAS"
 		import yaml
 		profile_dict = dict()
-		with open(path, "r") as f:
+		with open(path,"r") as stream:
 			try:
-				profile_dict = yaml.safe_load(f)
-			except:
-				raise IOError("Failed to read profile")
-		print "Success in loading profile"
+				print "YAML FILE CONTENTS"
+				profile_dict = yaml.safe_load(stream)
+				print "SUCCESSFULLY LOADED YAML"
+			except yaml.YAMLerror as exc: 
+				print exc
 		return profile_dict
-	"""
+	
 
 	"""
 	def _save_profile(self, path, profile, allow_overwrite = True):
@@ -87,15 +85,13 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			yaml.safe_dump(profile, f, default_flow_style = False, indent= "  ", allow_unicode = True)
 	"""
 
-	"""
+	
 	def get_slicer_default_profile(self):
 		print "GET DEFAULT PROFILE FUNCTION"
-		path = self._settings.get(["default_profile"])
-		if not path:
-			path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "profiles", "default.profile.yaml")
+		path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
 		print "DEF PATH IS: " + path
 		return self.get_slicer_profile(path)
-	"""
+	
 
 	"""
 	def save_slicer_profile(self, path, profile, allow_overwrite = True, overrides = None):
@@ -109,23 +105,16 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 	"""
 
 
-	def get_slicer_profile(self):
+	def get_slicer_profile(self,path):
 		print "GET SLICER PROFILE FUNCTION"
-		path = "~/default.profile.yaml"
-		import yaml
-		profile_dict = dict()
-		with open(path, "r") as f:
-			try:
-				profile_dict = yaml.safe_load(f)
-			except:
-				raise IOError("Couldn't read profile from {path}".format(path=path))
+		profile_dict = self._load_profile(path)
 		display_name = "Default"
 		description = "Default"
 		print "NAME: "+ display_name
 		print "DESC: "  + description
 		properties = self.get_slicer_properties()
-		print "PROPERTIES" + str(properties)
-		print "PROFILE DICT" + str(profile_dict)
+		print "PROPERTIES " + str(properties)
+		print "PROFILE DICT " + str(profile_dict)
 		return octoprint.slicing.SlicingProfile(properties["type"], "DEFAULT", profile_dict, display_name = display_name, description = description)
 
 
@@ -135,6 +124,8 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 
 	def is_slicer_configured(self):
 		print "Set to true so it should always be enabled"
+		path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
+		profile  = self.get_slicer_default_profile()
 		return True
 
 	@property
