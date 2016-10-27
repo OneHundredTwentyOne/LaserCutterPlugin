@@ -113,7 +113,12 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "GET SLICER PROFILE FUNCTION"
 		path = "~/default.profile.yaml"
 		import yaml
-		profile_dict = yaml.safe_load(path)
+		profile_dict = dict()
+		with open(path, "r") as f:
+			try:
+				profile_dict = yaml.safe_load(f)
+			except:
+				raise IOError("Couldn't read profile from {path}".format(path=path))
 		display_name = "Default"
 		description = "Default"
 		print "NAME: "+ display_name
