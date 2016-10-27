@@ -13,6 +13,7 @@ import logging.handlers
 import os
 import flask
 import math
+from .profile import Profile
 
 #imports Peter's SVG converter
 import svgConverter as svg_converter
