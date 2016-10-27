@@ -42,9 +42,10 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		default_path = "~/default.profile.yaml"
 		print "GETTING DEFAULT SETTINGS"
 		print "path is: " + default_path
-		default_profile = self.get_slicer_profile()
+		force_profile = self.get_slicer_profile()
 		return dict(
-			default_profile,
+			cura_engine = None,
+			default_profile = force_profile,
 			debug_logging=False
 		)
 
@@ -118,6 +119,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "NAME: "+ display_name
 		print "DESC: "  + description
 		properties = self.get_slicer_properties()
+		print "PROPERTIES" + properties
 		return [octoprint.slicing.SlicingProfile(properties["type"], "DEFAULT", profile_dict, display_name = display_name, description = description)]
 
 
