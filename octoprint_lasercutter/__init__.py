@@ -120,6 +120,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		print "DESC: "  + description
 		properties = self.get_slicer_properties()
 		print "PROPERTIES" + str(properties)
+		print "PROFILE DICT" + str(profile_dict)
 		return octoprint.slicing.SlicingProfile(properties["type"], "DEFAULT", profile_dict, display_name = display_name, description = description)
 
 
