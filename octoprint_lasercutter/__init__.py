@@ -39,7 +39,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 		)
 
 	def get_settings_defaults(self):
-		default_path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
+		default_path = "/home/pi/default.profile.yaml"
 		print "GETTING DEFAULT SETTINGS"
 		print "path is: " + default_path
 		return dict(
@@ -62,7 +62,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			destination_extensions = ["gco", "gcode", "g"]
 		)
 
-	
+
 	def _load_profile(self, path):
 		print "LOADING PROFILE YAS"
 		import yaml
@@ -72,10 +72,10 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 				print "YAML FILE CONTENTS"
 				profile_dict = yaml.safe_load(stream)
 				print "SUCCESSFULLY LOADED YAML"
-			except yaml.YAMLerror as exc: 
+			except yaml.YAMLerror as exc:
 				print exc
 		return profile_dict
-	
+
 
 	"""
 	def _save_profile(self, path, profile, allow_overwrite = True):
@@ -85,13 +85,13 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 			yaml.safe_dump(profile, f, default_flow_style = False, indent= "  ", allow_unicode = True)
 	"""
 
-	
+
 	def get_slicer_default_profile(self):
 		print "GET DEFAULT PROFILE FUNCTION"
-		path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
+		path = "/home/pi/default.profile.yaml"
 		print "DEF PATH IS: " + path
 		return self.get_slicer_profile(path)
-	
+
 
 	"""
 	def save_slicer_profile(self, path, profile, allow_overwrite = True, overrides = None):
@@ -124,7 +124,7 @@ class LaserCutterPlugin(octoprint.plugin.StartupPlugin,
 
 	def is_slicer_configured(self):
 		print "Set to true so it should always be enabled"
-		path = "/home/aaron/Documents/Project/LaserCutterPlugin/octoprint_lasercutter/default.profile.yaml"
+		path = "/home/pi/default.profile.yaml"
 		profile  = self.get_slicer_default_profile()
 		return True
 
